@@ -43,10 +43,8 @@ my $bus_message_received;
 sub comm_Send {
 	my (undef, $cmm) = @_;
 	$cmm =~ m/^"(.*)" (.*)$/;
-	my $selector = $1;
-	$cmm =~ m/^(\w+) (.*)$/ unless ($selector);
-	my $command = $2;
-	unless ($selector && $command) {
+	$cmm =~ m/^(\w+) (.*)$/ unless ($1);
+	unless ($1 && $2) {
 		msg("Command \"".BUS_COMMAND."\" failed, please use ".BUS_COMMAND." <all|player name> <command>.", 3);
 		return;
 	}
@@ -54,25 +52,25 @@ sub comm_Send {
 	# if ($char && $bus->getState == 4) {
 	if ($bus->getState == 4) {
 		my %args;
-		$args{player} = $selector;
-		$args{comm} = $command;
+		$args{player} = $1;
+		$args{comm} = $2;
 		$bus->send(BUS_MESSAGE_ID, \%args);
 	}
 	
-	if ($selector eq "all" || ($char && $selector eq $char->name) || $selector eq $char->{party}{name}) {
+	if ($1 eq "all" || ($char && $1 eq $char->name) || $1 eq $char->{party}{name}) {
 		return if (MESSENGER_MODE || $config{'busCommands_messengerMode'});
-		msg("Running command \"$command\"");
-		Commands::run($command);
-	} elsif ($selector eq 'off' && (!$net || $net->getState() == Network::NOT_CONNECTED)) {
+		msg("Running command \"$2\"");
+		Commands::run($2);
+	} elsif ($1 eq 'off' && (!$net || $net->getState() == Network::NOT_CONNECTED)) {
 		return if (MESSENGER_MODE || $config{'busCommands_messengerMode'});
-		msg("Running command \"$command\"");
-		Commands::run($command);
+		msg("Running command \"$2\"");
+		Commands::run($2);
 	} elsif ($field) {
-		if ($selector eq $field->name) {
+		if ($1 eq $field->name) {
 			return if (MESSENGER_MODE || $config{'busCommands_messengerMode'});
 			
-			msg("Running command $command received via BUS");
-			Commands::run($command);
+			msg("Running command $2 received via BUS");
+			Commands::run($2);
 		}
 	}
 }
@@ -80,9 +78,7 @@ sub comm_Send {
 sub msg_Send {
 	my (undef, $cmm) = @_;
 	$cmm =~ m/^"(.*)" (.*)$/;
-	my $selector = $1;
-	$cmm =~ m/^(\w+) (.*)$/ unless ($selector);
-	my $command = $2;
+	$cmm =~ m/^(\w+) (.*)$/ unless ($1);
 	
 	my $from = "anon";
 	if ($char) {
@@ -90,12 +86,12 @@ sub msg_Send {
 	}
 	
 	my %args;
-	$args{player} = $selector;
-	$args{comm} = $command;
+	$args{player} = $1;
+	$args{comm} = $2;
 	$args{sender} = $from;
 	$bus->send(BUS_MESSAGE_ID_MESS, \%args);
 	
-	Plugins::callHook('bus_received', {message => $args{comm}, sender => $args{sender}}) if (($char && $selector eq $char->name) || $selector eq "all");
+	Plugins::callHook('bus_received', {message => $args{comm}, sender => $args{sender}}) if (($char && $1 eq $char->name) || $1 eq "all");
 }
 			
 # handle plugin loaded manually
@@ -122,10 +118,7 @@ sub bus_message_received {
 	my (undef, undef, $msg) = @_;
 	#return if (!$char);
 	if ($msg->{messageID} eq BUS_MESSAGE_ID) {
-		if ($msg->{args}{player} eq "all"
-			||($char && $msg->{args}{player} eq $char->name)
-			|| $msg->{args}{player} eq $char->{party}{name}) {
-			
+		if ($msg->{args}{player} eq "all" || ($char && $msg->{args}{player} eq $char->name)  || $msg->{args}{player} eq $char->{party}{name}) {
 				Plugins::callHook('bus_received', {message => $msg->{args}{comm},});				
 				msg("Running command $msg->{args}{comm} received via BUS");
 				Commands::run($msg->{args}{comm});
